@@ -78,7 +78,8 @@ class MadoriOutlineDS(Dataset):
                 self.img_list += [os.path.join(self.img_dir, f'{f_name}.jpg')]
                 self.label_list += [os.path.join(self.label_dir, f'{f_name}.png')]
             else:
-                self.img_list += [os.path.join(self.pair_madori_dir, f'{f_name}.png')]
+                self.img_list += [[os.path.join(self.pair_madori_dir, f'{f_name}_a.png'), \
+                                   os.path.join(self.pair_madori_dir, f'{f_name}_b.png')]]
     
     def __init__(self, data_file, img_size=(256, 256), 
                  pair_test=False, 
@@ -110,8 +111,8 @@ class MadoriOutlineDS(Dataset):
     
     def _pad(self, img):
         w, h = img.size
-        return TF.pad(img, (0,0,256-w,0), padding_mode='edge') if h == 256 else \
-               TF.pad(img, (0,0,0,256-h), padding_mode='edge')
+        return TF.pad(img, (0,0,256-w,0), fill=255) if h == 256 else \
+               TF.pad(img, (0,0,0,256-h), fill=255)
     
     def _transform(self, img):
         return self._pad(self._resize(img))
@@ -138,7 +139,7 @@ class MadoriOutlineDS(Dataset):
         return img, label
     
     def __getitem__(self, idx):
-        img = Image.open(self.img_list[idx]).convert('L')
+        img = Image.open(self.img_list[idx][0]).convert('L') # とりあえず xxx_a.png を返す
         if not self.pair_test:
             label = Image.open(self.label_list[idx]).convert('L')
             return self._augment(img, label)
@@ -160,6 +161,12 @@ class MadoriOutlineSiameseDS(MadoriOutlineDS):
                              pair_madori_dir)
             
         def __getitem__(self, idx):
+            if self.pair_test:
+                img1_path, img2_path = self.img_list[idx]
+                img1 = self._transform(Image.open(img1_path).convert('L'))
+                img2 = self._transform(Image.open(img2_path).convert('L'))
+                return TF.to_tensor(img1), TF.to_tensor(img2)
+
             img = Image.open(self.img_list[idx]).convert('L')
             label = Image.open(self.label_list[idx]).convert('L')
             
